@@ -1,0 +1,12 @@
+{
+  "name": "tradenova",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "install:all": "npm install && npm --prefix frontend install && npm --prefix dashboard install && npm --prefix backend install",
+    "dev": "concurrently -n WEB,APP,API -c blue,magenta,green \"npm --prefix frontend run dev\" \"npm --prefix dashboard run dev\" \"npm --prefix backend run dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
