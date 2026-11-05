@@ -19,10 +19,18 @@ export function TrackProvider({ children }) {
   });
   const [progress, setProgress] = useState(() => read(LEARN_KEY, { done: [], xp: 0 }));
 
-  useEffect(() => { if (track) save(TRACK_KEY, track); }, [track]);
-  useEffect(() => { save(LEARN_KEY, progress); }, [progress]);
   useEffect(() => {
-    if (window.location.search.includes('track=')) window.history.replaceState(null, '', window.location.pathname);
+    if (track) save(TRACK_KEY, track);
+  }, [track]);
+
+  useEffect(() => {
+    save(LEARN_KEY, progress);
+  }, [progress]);
+
+  useEffect(() => {
+    if (window.location.search.includes('track=')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
   }, []);
 
   const completeLesson = (id, xp) =>

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTrading } from '../context/TradingContext';
-import { holdings as initialHoldings, positions as initialPositions, bySymbol as fallbackBySymbol, cash as fallbackCash } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { bySymbol as fallbackBySymbol } from '../data/mockData';
 import api from '../services/api';
 
 // Combines backend portfolio data + live prices with real-time profit/loss calculations.
 export default function usePortfolio() {
   const { quotes, bySymbol = fallbackBySymbol } = useTrading();
-  const [rawHoldings, setRawHoldings] = useState(initialHoldings);
-  const [rawPositions, setRawPositions] = useState(initialPositions);
-  const [userCash, setUserCash] = useState(fallbackCash);
+  const { user } = useAuth();
+  const [rawHoldings, setRawHoldings] = useState([]);
+  const [rawPositions, setRawPositions] = useState([]);
+  const [userCash, setUserCash] = useState(1000000);
   const [loading, setLoading] = useState(true);
 
   const fetchPortfolioData = useCallback(async () => {
@@ -24,10 +26,12 @@ export default function usePortfolio() {
           hData.value.map((item) => ({
             symbol: item.symbol,
             qty: item.qty,
-            avg: item.avgPrice,
+            avg: item.avgPrice ?? item.avg,
             name: item.name,
           }))
         );
+      } else {
+        setRawHoldings([]);
       }
 
       if (pData.status === 'fulfilled' && Array.isArray(pData.value)) {
@@ -36,28 +40,32 @@ export default function usePortfolio() {
             symbol: item.symbol,
             product: item.product,
             qty: item.qty,
-            avg: item.avgPrice,
+            avg: item.avgPrice ?? item.avg,
             name: item.name,
           }))
         );
+      } else {
+        setRawPositions([]);
       }
 
       if (portData.status === 'fulfilled' && portData.value?.cash !== undefined) {
         setUserCash(portData.value.cash);
+      } else if (user?.cash !== undefined) {
+        setUserCash(user.cash);
       }
     } catch (err) {
-      console.warn('Error fetching portfolio from API, using cached data:', err.message);
+      console.warn('Error fetching portfolio from API:', err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchPortfolioData();
   }, [fetchPortfolioData]);
 
   const portfolio = useMemo(() => {
-    const h = rawHoldings.map((x) => {
+    const h = (rawHoldings || []).map((x) => {
       const info = bySymbol[x.symbol] || { name: x.name || x.symbol, prev: x.avg };
       const ltp = quotes[x.symbol] ?? x.avg;
       const invested = x.qty * x.avg;
@@ -76,7 +84,7 @@ export default function usePortfolio() {
       };
     });
 
-    const p = rawPositions.map((x) => {
+    const p = (rawPositions || []).map((x) => {
       const info = bySymbol[x.symbol] || { name: x.name || x.symbol, prev: x.avg };
       const ltp = quotes[x.symbol] ?? x.avg;
       return {
@@ -113,4 +121,3 @@ export default function usePortfolio() {
 
   return portfolio;
 }
-

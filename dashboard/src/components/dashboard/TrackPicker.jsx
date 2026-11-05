@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTrack } from '../../context/TrackContext';
+import { useAuth } from '../../context/AuthContext';
 import { instruments } from '../../data/mockData';
 import { seeded } from '../../utils/seeded';
 
@@ -13,7 +14,6 @@ const options = [
   { key: 'pro', emoji: '📈', title: 'I already trade', text: 'Give me market insights and what to change.', cta: 'Open insights', to: '/insights' },
 ];
 
-// Floating chart cards in the background (position, size, tilt, speed, chart type)
 const CARDS = [
   { l: 3, t: 14, s: 1, r: -6, d: 9, k: 'c', seed: 3 },
   { l: 72, t: 10, s: 1.1, r: 5, d: 11, k: 'l', seed: 8 },
@@ -25,7 +25,6 @@ const CARDS = [
   { l: 28, t: 30, s: .7, r: -3, d: 14, k: 'l', seed: 30 },
 ];
 
-// One long line that keeps drawing itself across the bottom
 const BIG = (() => {
   const r = seeded(77); let v = 150; const pts = [];
   for (let i = 0; i < 40; i++) { v += (r() - 0.44) * 26; v = Math.max(30, Math.min(270, v)); pts.push(v); }
@@ -91,7 +90,6 @@ const Row = () =>
     );
   });
 
-// Everything that moves in the background. memo = it never re-renders, so the animation stays smooth.
 const Backdrop = memo(function Backdrop() {
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -112,7 +110,6 @@ const Backdrop = memo(function Backdrop() {
   );
 });
 
-// Nova the bull: drawn in SVG. It rides in, bobs, blinks, and jumps when you choose.
 function Bull({ jump }) {
   const eye = (cx) => (
     <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'tn-blink 4s infinite 1.6s' }}>
@@ -146,7 +143,6 @@ function Bull({ jump }) {
   );
 }
 
-// Types the message letter by letter. Click the bubble to skip.
 function Speech({ text, skip, onDone }) {
   const [n, setN] = useState(0);
   const timer = useRef();
@@ -167,15 +163,24 @@ function Speech({ text, skip, onDone }) {
 
 export default function TrackPicker() {
   const { track, setTrack } = useTrack();
+  const { user, updateUserTrack } = useAuth();
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
   const [skip, setSkip] = useState(false);
   const [picked, setPicked] = useState(null);
-  if (track) return null;
+
+  // Skip the picker if track is already chosen or user has a track saved
+  if (track || user?.track) return null;
 
   const choose = (o) => {
     setPicked(o.key);
-    setTimeout(() => { setTrack(o.key); navigate(o.to); }, 950); // let Nova celebrate first
+    setTimeout(() => {
+      setTrack(o.key);
+      if (user) {
+        updateUserTrack(o.key);
+      }
+      navigate(o.to);
+    }, 950);
   };
 
   return (

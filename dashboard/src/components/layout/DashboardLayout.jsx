@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Cursor } from '../ui';
 import OrderModal from '../dashboard/OrderModal';
+import StockDetailModal from '../dashboard/StockDetailModal';
 import TrackPicker from '../dashboard/TrackPicker';
 import { Change } from '../dashboard/Change';
 import { useTrack } from '../../context/TrackContext';
@@ -29,27 +30,58 @@ const useNavItems = () => {
 
 function TrackSwitch() {
   const { track, setTrack } = useTrack();
+  const { updateUserTrack } = useAuth();
   const navigate = useNavigate();
-  const pick = (t) => { setTrack(t); navigate(t === 'beginner' ? '/learn' : '/insights'); };
+
+  const pick = (t) => {
+    setTrack(t);
+    updateUserTrack(t);
+    navigate(t === 'beginner' ? '/learn' : '/insights');
+  };
+
   return (
     <div className="flex rounded-full border border-line p-0.5 text-xs" role="group" aria-label="Choose your track">
       {[['beginner', '🌱 Beginner'], ['pro', '📈 Pro']].map(([k, l]) => (
-        <button key={k} onClick={() => pick(k)} aria-pressed={track === k}
-          className={`rounded-full px-4 py-2 transition ${track === k ? 'bg-ink text-bg' : 'text-mute hover:text-ink'}`}>{l}</button>
+        <button
+          key={k}
+          onClick={() => pick(k)}
+          aria-pressed={track === k}
+          className={`rounded-full px-4 py-2 transition ${track === k ? 'bg-ink text-bg' : 'text-mute hover:text-ink'}`}
+        >
+          {l}
+        </button>
       ))}
     </div>
   );
 }
 
 function IndexChip({ symbol }) {
-  const { quotes } = useTrading();
-  const info = bySymbol[symbol];
+  const { quotes, bySymbol: contextBySymbol } = useTrading();
+  const info = contextBySymbol?.[symbol] || bySymbol[symbol];
+  if (!info || quotes[symbol] === undefined) return null;
   const change = ((quotes[symbol] - info.prev) / info.prev) * 100;
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className="text-white/60">{info.name}</span>
-      <span className="num text-white">{quotes[symbol].toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+      <span className="num text-white">
+        {quotes[symbol].toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
       <Change value={change} kind="pct" className="text-xs" />
+    </div>
+  );
+}
+
+function MarketSourceBadge() {
+  const { quoteSource } = useTrading();
+  const isLive = quoteSource === 'live';
+
+  return (
+    <div
+      className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/80"
+      title="Live data sourced from Yahoo Finance (unofficial) for learning and educational purposes only."
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${isLive ? 'bg-profit animate-pulse' : 'bg-mute'}`} />
+      <span>{isLive ? 'Live (may be delayed)' : 'Simulated prices'}</span>
     </div>
   );
 }
@@ -59,7 +91,8 @@ export default function DashboardLayout() {
   const [open, setOpen] = useState(false);
   const items = useNavItems();
   const title = navItems.find((n) => (n.end ? pathname === n.to : pathname.startsWith(n.to)))?.label ?? 'Dashboard';
-  const { user, isLoggedIn, logout, openAuthModal } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => {
@@ -69,35 +102,44 @@ export default function DashboardLayout() {
   }, []);
   useEffect(() => { document.body.style.overflow = open ? 'hidden' : ''; }, [open]);
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen">
       <Cursor />
 
-      {/* Header: wordmark left, Menu right. It uses "difference" blending like the 3D page. */}
+      {/* Header: wordmark left, Menu right */}
       <header className={`fixed inset-x-0 top-0 z-[90] flex items-start justify-between px-5 pt-5 sm:px-8 ${open ? '' : 'mix-blend-difference'}`}>
-        <a href={WEBSITE_URL} className="font-serif text-2xl leading-none text-white">Trade<em className="not-italic">Nova</em></a>
-        <div className="hidden items-center gap-8 md:flex"><IndexChip symbol="NIFTY" /><IndexChip symbol="SENSEX" /></div>
+        <a href={WEBSITE_URL} className="font-serif text-2xl leading-none text-white">
+          Trade<em className="not-italic">Nova</em>
+        </a>
+        <div className="hidden items-center gap-8 md:flex">
+          <IndexChip symbol="NIFTY" />
+          <IndexChip symbol="SENSEX" />
+        </div>
         <div className="flex items-center gap-4">
-          {isLoggedIn ? (
+          <MarketSourceBadge />
+          {user && (
             <div className="flex items-center gap-2">
-              <span className="hidden sm:inline text-xs text-white/80">👤 {user?.name}</span>
+              <span className="hidden sm:inline text-xs text-white/80">👤 {user.name}</span>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white transition hover:bg-white/20"
               >
-                Sign out
+                Log out
               </button>
             </div>
-          ) : (
-            <button
-              onClick={openAuthModal}
-              className="rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs text-white transition hover:bg-white/20"
-            >
-              Sign in
-            </button>
           )}
-          <button onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="nav-menu" aria-label={open ? 'Close menu' : 'Open menu'}
-            className="group flex min-h-11 min-w-11 flex-col items-end gap-1.5 text-white">
+          <button
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls="nav-menu"
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            className="group flex min-h-11 min-w-11 flex-col items-end gap-1.5 text-white"
+          >
             <span className={`text-sm transition-opacity ${open ? 'opacity-0' : ''}`}>Menu</span>
             <span className="relative block h-5 w-12">
               <i className={`absolute left-0 right-0 top-1/2 h-px bg-white transition-transform duration-500 ${open ? 'rotate-45' : '-translate-y-[5px]'}`} />
@@ -107,29 +149,63 @@ export default function DashboardLayout() {
         </div>
       </header>
 
-      {/* Full-screen menu that wipes down, like the 3D page */}
-      <div id="nav-menu" aria-hidden={!open} inert={open ? undefined : ''}
-        className={`fixed inset-0 z-[80] grid place-items-center bg-[#050505] transition-[clip-path] duration-[850ms] ease-in-out ${open ? '[clip-path:inset(0)]' : 'pointer-events-none [clip-path:inset(0_0_100%_0)]'}`}>
-        <nav className="flex flex-col items-center gap-1 text-center" aria-label="Dashboard">
-          {items.map((i) => (
-            <NavLink key={i.to} to={i.to} end={i.end}
-              className={({ isActive }) => `font-serif text-[clamp(34px,7vw,72px)] leading-[1.1] transition-all hover:tracking-[.012em] hover:opacity-100 ${isActive ? 'opacity-100' : 'opacity-55'}`}>
-              {i.label}
-            </NavLink>
-          ))}
-        </nav>
+      {/* Full-screen menu */}
+      <div
+        id="nav-menu"
+        aria-hidden={!open}
+        inert={open ? undefined : ''}
+        className={`fixed inset-0 z-[80] grid place-items-center bg-[#050505] transition-[clip-path] duration-[850ms] ease-in-out ${
+          open ? '[clip-path:inset(0)]' : 'pointer-events-none [clip-path:inset(0_0_100%_0)]'
+        }`}
+      >
+        <div className="flex flex-col items-center gap-6">
+          {user && (
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-wider text-white/40">Logged in as</p>
+              <p className="mt-1 font-serif text-xl text-white">{user.name}</p>
+              <button
+                onClick={handleLogout}
+                className="mt-2 text-xs text-white/60 underline hover:text-white"
+              >
+                Log out
+              </button>
+            </div>
+          )}
+          <nav className="flex flex-col items-center gap-1 text-center" aria-label="Dashboard">
+            {items.map((i) => (
+              <NavLink
+                key={i.to}
+                to={i.to}
+                end={i.end}
+                className={({ isActive }) =>
+                  `font-serif text-[clamp(34px,7vw,72px)] leading-[1.1] transition-all hover:tracking-[.012em] hover:opacity-100 ${
+                    isActive ? 'opacity-100' : 'opacity-55'
+                  }`
+                }
+              >
+                {i.label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
         <div className="absolute inset-x-5 bottom-6 flex flex-wrap items-center justify-between gap-4 text-xs text-mute sm:inset-x-8">
           <TrackSwitch />
-          <span><a className="hover:text-ink" href={`${WEBSITE_URL}/explore/index.html`}>Explore in 3D</a> · <a className="hover:text-ink" href={WEBSITE_URL}>Back to website</a></span>
+          <span>
+            <a className="hover:text-ink" href={`${WEBSITE_URL}/explore/index.html`}>Explore in 3D</a> ·{' '}
+            <a className="hover:text-ink" href={WEBSITE_URL}>Back to website</a>
+          </span>
         </div>
       </div>
 
       <main className="mx-auto max-w-6xl px-5 pb-16 pt-28 sm:px-8">
         <h1 className="mb-8 text-4xl tracking-tight sm:text-5xl">{title}</h1>
         <div key={pathname} className="animate-fade-in"><Outlet /></div>
-        <p className="mt-12 text-center text-xs text-mute">Demo data and virtual money. Not investment advice.</p>
+        <p className="mt-12 text-center text-xs text-mute">
+          Live market data from Yahoo Finance (unofficial) for learning and educational purposes only. Demo virtual money.
+        </p>
       </main>
       <OrderModal />
+      <StockDetailModal />
       <TrackPicker />
     </div>
   );

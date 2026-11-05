@@ -28,8 +28,8 @@ export default function Navbar() {
         </ul>
 
         <div className="hidden items-center gap-3 md:flex">
-          <a href={DASHBOARD_URL}><Button variant="ghost" size="sm">Log in</Button></a>
-          <a href="#open-account"><Button size="sm">Open account</Button></a>
+          <a href={`${DASHBOARD_URL}/login`}><Button variant="ghost" size="sm">Log in</Button></a>
+          <a href={`${DASHBOARD_URL}/register`}><Button size="sm">Open account</Button></a>
         </div>
 
         <button
@@ -54,8 +54,12 @@ export default function Navbar() {
             ))}
           </ul>
           <div className="mt-3 flex items-center gap-3">
-            <a href={DASHBOARD_URL} className="flex-1"><Button variant="outline" className="w-full">Log in</Button></a>
-            <a href="#open-account" onClick={() => setOpen(false)} className="flex-1"><Button className="w-full">Open account</Button></a>
+            <a href={`${DASHBOARD_URL}/login`} className="flex-1">
+              <Button variant="outline" className="w-full">Log in</Button>
+            </a>
+            <a href={`${DASHBOARD_URL}/register`} onClick={() => setOpen(false)} className="flex-1">
+              <Button className="w-full">Open account</Button>
+            </a>
           </div>
         </div>
       )}

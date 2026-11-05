@@ -19,7 +19,7 @@ function makeSeries(symbol, prev, price) {
 }
 
 function Row({ symbol, onRemove }) {
-  const { quotes, bySymbol = fallbackBySymbol, openOrder } = useTrading();
+  const { quotes, bySymbol = fallbackBySymbol, openOrder, openStockDetail } = useTrading();
   const info = bySymbol[symbol] || { name: symbol, prev: quotes[symbol] || 100, price: quotes[symbol] || 100 };
   const ltp = quotes[symbol] ?? info.price;
   const base = useMemo(() => makeSeries(symbol, info.prev, info.price), [symbol, info.prev, info.price]);
@@ -28,10 +28,14 @@ function Row({ symbol, onRemove }) {
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-line/50 px-4 py-3.5 last:border-0">
-      <div className="min-w-0 flex-1 basis-40">
-        <p className="font-semibold">{symbol}</p>
+      <button
+        onClick={() => openStockDetail?.(symbol)}
+        className="min-w-0 flex-1 basis-40 text-left hover:opacity-80 transition cursor-pointer"
+        title="View stock details and chart"
+      >
+        <p className="font-semibold text-ink underline decoration-line/60 underline-offset-2">{symbol}</p>
         <p className="truncate text-xs text-mute">{info.name}</p>
-      </div>
+      </button>
       <Sparkline data={series} up={change >= 0} />
       <div className="w-28 text-right">
         <LivePrice value={ltp} />

@@ -1,8 +1,27 @@
 // API client for TradeNova Dashboard
 const API_BASE = '/api';
+const TOKEN_KEY = 'tradenova-token';
+
+export function getStoredToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setStoredToken(token) {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function clearStoredToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  // Also clean up any legacy key if present
+  localStorage.removeItem('tradenova_token');
+}
 
 async function request(path, options = {}) {
-  const token = localStorage.getItem('tradenova_token');
+  const token = getStoredToken();
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -14,6 +33,14 @@ async function request(path, options = {}) {
     headers,
   });
 
+  if (res.status === 401) {
+    // If not already on login or register page, clear token and redirect
+    clearStoredToken();
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+      window.location.href = '/login';
+    }
+  }
+
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.error || `Request failed with status ${res.status}`);
@@ -24,20 +51,21 @@ async function request(path, options = {}) {
 
 export const api = {
   // Auth
-  signup: async (userData) => {
-    const data = await request('/auth/signup', { method: 'POST', body: JSON.stringify(userData) });
-    if (data.token) localStorage.setItem('tradenova_token', data.token);
+  register: async (userData) => {
+    const data = await request('/auth/register', { method: 'POST', body: JSON.stringify(userData) });
+    if (data.token) setStoredToken(data.token);
     return data;
   },
   login: async (credentials) => {
     const data = await request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) });
-    if (data.token) localStorage.setItem('tradenova_token', data.token);
+    if (data.token) setStoredToken(data.token);
     return data;
   },
   logout: () => {
-    localStorage.removeItem('tradenova_token');
+    clearStoredToken();
   },
   getMe: () => request('/auth/me'),
+  updateTrack: (track) => request('/auth/me', { method: 'PATCH', body: JSON.stringify({ track }) }),
 
   // Health
   checkHealth: () => request('/health'),
@@ -45,9 +73,14 @@ export const api = {
   // Instruments
   getInstruments: () => request('/instruments'),
   getInstrument: (symbol) => request(`/instruments/${symbol}`),
+  getInstrumentHistory: (symbol, range = '1mo') => request(`/instruments/${symbol}/history?range=${range}`),
+
+  // Quotes
+  getQuotes: () => request('/quotes'),
 
   // Portfolio
   getPortfolio: () => request('/portfolio'),
+  getPortfolioHistory: () => request('/portfolio/history'),
   getHoldings: () => request('/portfolio/holdings'),
   getPositions: () => request('/portfolio/positions'),
 

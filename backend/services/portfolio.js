@@ -41,6 +41,7 @@ export async function buildPortfolio(user) {
   const value = sum(holdings, 'value');
   const pnl = value - invested;
   const positionsPnl = sum(positions, 'pnl');
+  const netWorth = user.cash + value;
 
   return {
     holdings,
@@ -48,7 +49,7 @@ export async function buildPortfolio(user) {
     totals: {
       invested, value, pnl, pnlPct: invested ? (pnl / invested) * 100 : 0,
       dayPnl: sum(holdings, 'dayChange') + positionsPnl, positionsPnl,
-      cash: user.cash, netWorth: user.cash + value,
+      cash: user.cash, netWorth,
     },
   };
 }

@@ -1,4 +1,5 @@
-import { Button } from '../components/ui';
+import { Link } from 'react-router-dom';
+import { Button, Card } from '../components/ui';
 import DataTable from '../components/dashboard/DataTable';
 import LivePrice from '../components/dashboard/LivePrice';
 import StatCard from '../components/dashboard/StatCard';
@@ -9,10 +10,24 @@ import { inr } from '../utils/format';
 
 export default function Holdings() {
   const { holdings, totals } = usePortfolio();
-  const { openOrder } = useTrading();
+  const { openOrder, openStockDetail } = useTrading();
+  const hasHoldings = holdings && holdings.length > 0;
 
   const columns = [
-    { key: 'symbol', label: 'Instrument', render: (r) => (<div><p className="font-semibold">{r.symbol}</p><p className="text-xs text-mute">{r.name}</p></div>) },
+    {
+      key: 'symbol',
+      label: 'Instrument',
+      render: (r) => (
+        <button
+          onClick={() => openStockDetail?.(r.symbol)}
+          className="text-left hover:opacity-80 transition cursor-pointer"
+          title="View stock details and chart"
+        >
+          <p className="font-semibold text-ink underline decoration-line/60 underline-offset-2">{r.symbol}</p>
+          <p className="text-xs text-mute">{r.name}</p>
+        </button>
+      ),
+    },
     { key: 'qty', label: 'Qty', align: 'right', render: (r) => <span className="num">{r.qty}</span> },
     { key: 'avg', label: 'Avg cost', align: 'right', render: (r) => <span className="num">{inr(r.avg)}</span> },
     { key: 'ltp', label: 'LTP', align: 'right', render: (r) => <LivePrice value={r.ltp} /> },
@@ -31,8 +46,8 @@ export default function Holdings() {
     <>
       <td className="px-4 py-3">Total</td><td /><td />
       <td />
-      <td className="num px-4 py-3 text-right">{inr(totals.value)}</td>
-      <td className="px-4 py-3 text-right"><Change value={totals.pnl} /></td>
+      <td className="num px-4 py-3 text-right">{inr(totals.value || 0)}</td>
+      <td className="px-4 py-3 text-right"><Change value={totals.pnl || 0} /></td>
       <td /><td />
     </>
   );
@@ -40,11 +55,28 @@ export default function Holdings() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatCard label="Invested" value={inr(totals.invested)} />
-        <StatCard label="Current value" value={inr(totals.value)} />
-        <StatCard label="Total P&L" value={<Change value={totals.pnl} />}><Change value={totals.pnlPct} kind="pct" /></StatCard>
+        <StatCard label="Invested" value={inr(totals.invested || 0)} />
+        <StatCard label="Current value" value={inr(totals.value || 0)} />
+        <StatCard label="Total P&L" value={<Change value={totals.pnl || 0} />}>
+          <Change value={totals.pnlPct || 0} kind="pct" />
+        </StatCard>
       </div>
-      <DataTable columns={columns} rows={holdings} rowKey="symbol" footer={footer} />
+
+      {!hasHoldings ? (
+        <Card className="p-8 text-center sm:p-12">
+          <p className="font-serif text-xl">You have no holdings yet.</p>
+          <p className="mt-2 text-sm text-mute">
+            Buy your first stock from the watchlist to start building your portfolio.
+          </p>
+          <div className="mt-5 flex justify-center">
+            <Link to="/watchlist">
+              <Button size="sm">Go to Watchlist</Button>
+            </Link>
+          </div>
+        </Card>
+      ) : (
+        <DataTable columns={columns} rows={holdings} rowKey="symbol" footer={footer} />
+      )}
     </div>
   );
 }
