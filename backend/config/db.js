@@ -1,3 +1,5 @@
+import dns from 'node:dns';
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 import mongoose from 'mongoose';
 
 // Connects to MongoDB. If MONGO_URI is missing the server still runs, so you can work on other things.

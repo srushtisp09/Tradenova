@@ -4,7 +4,7 @@
 
 A full-stack paper trading platform: practice the stock market with virtual money, live-style charts, a watchlist, holdings, positions and orders.
 
-**Status:** in progress (Steps 1 to 4 done: setup, design system, landing page, dashboard UI, plus Beginner and Pro tracks and a 3D explore page).
+**Status:** in progress (Steps 1 to 6 done: setup, design system, landing page, dashboard UI, API and database, dashboard connected to the API, plus Beginner and Pro tracks and a 3D explore page).
 
 ## Tech stack
 - **Frontend and Dashboard:** React, Vite, Tailwind CSS, React Router
@@ -35,8 +35,8 @@ Backend setup: copy `backend/.env.example` to `backend/.env` and add your `MONGO
 - [x] Step 4: Dashboard UI
 - [x] Step 4b: Beginner academy and Pro insights tracks
 - [x] Bonus: 3D explore page at `/explore/`
-- [ ] Step 5: Backend and MongoDB
-- [ ] Step 6: Connect frontend to backend
+- [x] Step 5: Backend and MongoDB
+- [x] Step 6: Connect frontend to backend
 - [ ] Step 7: Authentication
 - [ ] Step 8: Charts and live data
 - [ ] Step 9: Buy/sell and orders

@@ -6,6 +6,7 @@ import TrackPicker from '../dashboard/TrackPicker';
 import { Change } from '../dashboard/Change';
 import { useTrack } from '../../context/TrackContext';
 import { useTrading } from '../../context/TradingContext';
+import { useAuth } from '../../context/AuthContext';
 import { bySymbol } from '../../data/mockData';
 
 const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5173';
@@ -58,6 +59,7 @@ export default function DashboardLayout() {
   const [open, setOpen] = useState(false);
   const items = useNavItems();
   const title = navItems.find((n) => (n.end ? pathname === n.to : pathname.startsWith(n.to)))?.label ?? 'Dashboard';
+  const { user, isLoggedIn, logout, openAuthModal } = useAuth();
 
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => {
@@ -75,14 +77,34 @@ export default function DashboardLayout() {
       <header className={`fixed inset-x-0 top-0 z-[90] flex items-start justify-between px-5 pt-5 sm:px-8 ${open ? '' : 'mix-blend-difference'}`}>
         <a href={WEBSITE_URL} className="font-serif text-2xl leading-none text-white">Trade<em className="not-italic">Nova</em></a>
         <div className="hidden items-center gap-8 md:flex"><IndexChip symbol="NIFTY" /><IndexChip symbol="SENSEX" /></div>
-        <button onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="nav-menu" aria-label={open ? 'Close menu' : 'Open menu'}
-          className="group flex min-h-11 min-w-11 flex-col items-end gap-1.5 text-white">
-          <span className={`text-sm transition-opacity ${open ? 'opacity-0' : ''}`}>Menu</span>
-          <span className="relative block h-5 w-12">
-            <i className={`absolute left-0 right-0 top-1/2 h-px bg-white transition-transform duration-500 ${open ? 'rotate-45' : '-translate-y-[5px]'}`} />
-            <i className={`absolute top-1/2 h-px bg-white transition-all duration-500 ${open ? 'left-0 right-0 -rotate-45' : 'right-0 w-9 translate-y-[5px] group-hover:-translate-x-2'}`} />
-          </span>
-        </button>
+        <div className="flex items-center gap-4">
+          {isLoggedIn ? (
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline text-xs text-white/80">👤 {user?.name}</span>
+              <button
+                onClick={logout}
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white transition hover:bg-white/20"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={openAuthModal}
+              className="rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs text-white transition hover:bg-white/20"
+            >
+              Sign in
+            </button>
+          )}
+          <button onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="nav-menu" aria-label={open ? 'Close menu' : 'Open menu'}
+            className="group flex min-h-11 min-w-11 flex-col items-end gap-1.5 text-white">
+            <span className={`text-sm transition-opacity ${open ? 'opacity-0' : ''}`}>Menu</span>
+            <span className="relative block h-5 w-12">
+              <i className={`absolute left-0 right-0 top-1/2 h-px bg-white transition-transform duration-500 ${open ? 'rotate-45' : '-translate-y-[5px]'}`} />
+              <i className={`absolute top-1/2 h-px bg-white transition-all duration-500 ${open ? 'left-0 right-0 -rotate-45' : 'right-0 w-9 translate-y-[5px] group-hover:-translate-x-2'}`} />
+            </span>
+          </button>
+        </div>
       </header>
 
       {/* Full-screen menu that wipes down, like the 3D page */}

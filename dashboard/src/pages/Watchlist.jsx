@@ -1,15 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Button, Input } from '../components/ui';
 import Sparkline from '../components/dashboard/Sparkline';
 import LivePrice from '../components/dashboard/LivePrice';
 import { Change } from '../components/dashboard/Change';
 import { useTrading } from '../context/TradingContext';
-import { instruments, bySymbol, initialWatchlist } from '../data/mockData';
+import { instruments as fallbackInstruments, bySymbol as fallbackBySymbol, initialWatchlist } from '../data/mockData';
 import { hash, seeded } from '../utils/seeded';
+import api from '../services/api';
 
 // Makes a small fake price history for the sparkline, the same every time for the same stock.
-function makeSeries(symbol) {
-  const { prev, price } = bySymbol[symbol];
+function makeSeries(symbol, prev, price) {
   const rand = seeded(hash(symbol));
   const n = 24;
   return Array.from({ length: n }, (_, i) => {
@@ -19,12 +19,12 @@ function makeSeries(symbol) {
 }
 
 function Row({ symbol, onRemove }) {
-  const { quotes, openOrder } = useTrading();
-  const info = bySymbol[symbol];
-  const ltp = quotes[symbol];
-  const base = useMemo(() => makeSeries(symbol), [symbol]);
+  const { quotes, bySymbol = fallbackBySymbol, openOrder } = useTrading();
+  const info = bySymbol[symbol] || { name: symbol, prev: quotes[symbol] || 100, price: quotes[symbol] || 100 };
+  const ltp = quotes[symbol] ?? info.price;
+  const base = useMemo(() => makeSeries(symbol, info.prev, info.price), [symbol, info.prev, info.price]);
   const series = [...base.slice(0, -1), ltp]; // last point follows the live price
-  const change = ((ltp - info.prev) / info.prev) * 100;
+  const change = info.prev > 0 ? ((ltp - info.prev) / info.prev) * 100 : 0;
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-line/50 px-4 py-3.5 last:border-0">
@@ -40,24 +40,58 @@ function Row({ symbol, onRemove }) {
       <div className="flex items-center gap-2">
         <Button size="sm" onClick={() => openOrder(symbol, 'BUY')}>Buy</Button>
         <Button size="sm" variant="outline" onClick={() => openOrder(symbol, 'SELL')}>Sell</Button>
-        <button onClick={() => onRemove(symbol)} aria-label={`Remove ${symbol} from watchlist`} className="rounded-lg px-2 py-1 text-mute hover:text-loss">×</button>
+        <button onClick={() => onRemove(symbol)} aria-label={`Remove ${symbol} from watchlist`} className="rounded-lg px-2 py-1 text-mute hover:text-loss">✕</button>
       </div>
     </li>
   );
 }
 
 export default function Watchlist() {
+  const { instruments = fallbackInstruments, bySymbol = fallbackBySymbol } = useTrading();
   const [list, setList] = useState(initialWatchlist);
   const [query, setQuery] = useState('');
   const [toAdd, setToAdd] = useState('');
 
-  const available = instruments.filter((i) => !list.includes(i.symbol));
-  const shown = list.filter((s) => (s + bySymbol[s].name).toLowerCase().includes(query.toLowerCase()));
+  const loadWatchlist = useCallback(async () => {
+    try {
+      const data = await api.getWatchlist();
+      if (Array.isArray(data)) {
+        setList(data.map((item) => (typeof item === 'string' ? item : item.symbol)));
+      }
+    } catch (err) {
+      console.warn('Could not load watchlist from backend:', err.message);
+    }
+  }, []);
 
-  const add = () => {
+  useEffect(() => {
+    loadWatchlist();
+  }, [loadWatchlist]);
+
+  const available = instruments.filter((i) => !list.includes(i.symbol));
+  const shown = list.filter((s) => {
+    const name = bySymbol[s]?.name || '';
+    return (s + name).toLowerCase().includes(query.toLowerCase());
+  });
+
+  const add = async () => {
     if (!toAdd) return;
-    setList([...list, toAdd]);
+    const symbolToAdd = toAdd;
+    setList((prev) => [...prev, symbolToAdd]);
     setToAdd('');
+    try {
+      await api.addToWatchlist(symbolToAdd);
+    } catch (err) {
+      console.error('Failed to add to watchlist on server:', err.message);
+    }
+  };
+
+  const remove = async (symbolToRemove) => {
+    setList((prev) => prev.filter((x) => x !== symbolToRemove));
+    try {
+      await api.removeFromWatchlist(symbolToRemove);
+    } catch (err) {
+      console.error('Failed to remove from watchlist on server:', err.message);
+    }
   };
 
   return (
@@ -83,7 +117,7 @@ export default function Watchlist() {
         {shown.length === 0 ? (
           <p className="px-4 py-10 text-center text-mute">{list.length === 0 ? 'Your watchlist is empty. Add a stock above.' : 'No stock matches that search.'}</p>
         ) : (
-          <ul>{shown.map((s) => <Row key={s} symbol={s} onRemove={(sym) => setList(list.filter((x) => x !== sym))} />)}</ul>
+          <ul>{shown.map((s) => <Row key={s} symbol={s} onRemove={remove} />)}</ul>
         )}
       </div>
     </div>
